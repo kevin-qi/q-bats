@@ -272,6 +272,12 @@ void setup() {
 }
 
 void loop() {
+  val = digitalRead(BB_STIM_PIN);
+  Serial.println(val);
+}
+
+/*
+void loop() {
   // put your main code here, to run repeatedly:
   //reward_P1();
   //reward_Q1();
@@ -331,3 +337,4 @@ void loop() {
   fsm.trigger(EVENT_RESET_READY);  
  }
 }
+*/
