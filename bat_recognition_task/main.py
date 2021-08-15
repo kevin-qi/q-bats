@@ -12,6 +12,8 @@ arduino = serial.Serial(port='COM3', baudrate=115200, timeout=.1)
 line = ''
 """
 
+is_trial = False
+
 def write_read(x):
     arduino.write(bytes(x, 'utf-8'))
     data = arduino.readline()
@@ -28,7 +30,7 @@ else:
     exp_config['bats'] = {}
     num_bats = int(input("Number of stimuli bats: "))
     for i in range(num_bats):
-        bat_id = input("Bat {} ID: ".format(i))
+        bat_id = str(input("Bat {} ID: ".format(i)))
         feeder = None
         while not feeder in set(['p','q']):
             feeder = str(input("Set corresponding feeder (P, Q): ")).lower()
@@ -45,10 +47,21 @@ sess_name = input("Session Name: ")
 exp_logs = open('{}/{}_logs.txt'.format(exp_dir, sess_name), 'a+')
 
 def read_kbd_input(inputQueue):
-    print('Ready for keyboard input:')
+    global is_trial
     while (True):
-        input_str = input()
-        inputQueue.put(input_str)
+        if(not is_trial):
+            input_str = ""
+            print('\n')
+            while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit':
+                print('\nInput Next bat id {}:'.format(exp_config['bats']))
+                input_str = input()
+                if input_str not in exp_config['bats'].keys() and not input_str.lower() == 'exit':
+                    print("Invalid bat ID!")
+            if(not input_str.lower() == 'exit'):
+                print("Bat selection complete. Please present bat {}".format(input_str))
+                print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
+            inputQueue.put(input_str)
+            is_trial = True
 
 """
 while True:
@@ -65,9 +78,11 @@ while True:
         bat_id = input("Enter bat index")
         arduino.write(bytes(bat_id, 'utf-8'))"""
 
-
-
 def main():
+    # Bool flag true during trial, false between trials
+    global is_trial
+    is_trial = False
+
     EXIT_COMMAND = "exit"
     inputQueue = queue.Queue()
 
@@ -84,11 +99,13 @@ def main():
                 exp_logs.close()
                 break
             # Insert your code here to do whatever you want with the input_str.
-
+            # arduino.write(bytes(input_str, 'utf-8'))
         # The rest of your program goes here.
         exp_logs.write(str(i)+'\n')
         i+=1
-        time.sleep(0.01) 
+        if(i % 300 == 0):
+            is_trial = False
+        time.sleep(0.01)
     print("End.")
 
 if (__name__ == '__main__'): 
