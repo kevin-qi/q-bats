@@ -44,7 +44,7 @@
 #define Q2_FEED_BB_PIN A13
 
 // TTL
-#define TTL_PIN 20
+#define TTL_PIN 51
 
 #define feeder_speed 127
 
@@ -64,7 +64,6 @@
 #define REW_STATE_PIN 40
 
 int ttl_timestamp;
-int prev_ttl_val = 0;
 
 int val_bb_stim;
 int val_bb_sniff;
@@ -128,7 +127,7 @@ State state_ready(&on_ready_enter, on_ready_state, &on_ready_exit);
 State state_stim(&on_stim_enter, NULL, &on_stim_exit);
 State state_sniff(&on_sniff_enter, NULL, &on_sniff_exit);
 State state_rew(&on_rew_enter, NULL, &on_rew_exit);
-Fsm fsm(&state_reset);
+Fsm fsm(&state_ready);
 
 void on_ready_enter() {
  digitalWrite(READY_STATE_PIN, HIGH);
@@ -198,7 +197,7 @@ void on_stim_to_reset_timed() {
 }
 
 void log_TTL() {
-  Serial.print("|" + String(millis()) + "|");
+  //Serial.send("!" + String(millis()) + "!");
 }
 
 // Setup
@@ -213,7 +212,7 @@ void setup() {
  pinMode(REW_STATE_PIN, OUTPUT);
 
  pinMode(TTL_PIN, INPUT);
- attachInterrupt(digitalPinToInterrupt(TTL_PIN), log_TTL, CHANGE);
+ attachInterrupt(TTL_PIN, log_TTL, RISING);
  
  //pinMode(BB_READY_PIN, INPUT);
  bounce_A_STIM_BB.attach(A_STIM_BB_PIN, INPUT_PULLUP);
@@ -257,9 +256,9 @@ void setup() {
                           60000,
                           &on_stim_to_reset_timed);
                           
- //fsm.add_timed_transition(&state_reset, &state_ready,
- //                         2000,
- //                         NULL);
+ fsm.add_timed_transition(&state_reset, &state_ready,
+                          2000,
+                          NULL);
                           
  fsm.add_timed_transition(&state_sniff, &state_rew,
                           5000,
@@ -330,16 +329,8 @@ void loop() {
   }
  }
 
- 
  if(Serial.available()){
-  String inStr = Serial.readStringUntil('\n');
-  //Serial.print(inStr);
-  if(inStr == "10000"){
-    fsm.trigger(EVENT_RESET_READY);  
-  } else {
-    delay(2000);
-    Serial.print("RESET\n");
-  }
-  
+  char inByte = Serial.read();
+  fsm.trigger(EVENT_RESET_READY);  
  }
 }
