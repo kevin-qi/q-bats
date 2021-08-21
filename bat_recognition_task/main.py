@@ -8,6 +8,7 @@ import queue
 from pathlib import Path
 import os
 import re
+import soundcard as sc
 
 is_trial = False
 
@@ -63,17 +64,36 @@ def read_kbd_input(inputQueue):
         if(not is_trial):
             input_str = ""
             print('\n')
-            while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit':
+            while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit' and not input_str == "*":
                 print('\nInput Next bat id {}:'.format(exp_config['bats']))
                 input_str = input()
-                if input_str not in exp_config['bats'].keys() and not input_str.lower() == 'exit':
+                if input_str not in exp_config['bats'].keys() and not input_str.lower() == 'exit' and not input_str == "*":
                     print("Invalid bat ID!")
             if(not input_str.lower() == 'exit'):
-                print("Bat selection complete. Please present bat {}".format(input_str))
-                print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
-            inputQueue.put(input_str)
+                if(input_str == "*"):
+                    print("Bat selection complete. Please present * bat.")
+                    print("Target Feeder: *")
+                else:
+                    print("Bat selection complete. Please present bat {}".format(input_str))
+                    print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
+            if(input_str == "*"):
+                inputQueue.put(input_str)
+            elif(not input_str == "exit"):
+                inputQueue.put(exp_config['bats'][input_str])
+            else:
+                inputQueue.put("exit")
             is_trial = True
+        if(is_trial):
+            input_str = input()
+            if input_str == "trigger":
+                print("Manual triggerring beam break. Advance to next state")
+                inputQueue.put(input_str)
+            elif input_str == "reset":
+                print("Manual reset command")
+                inputQueue.put(input_str)
+
         time.sleep(0.5)
+
 
 """
 while True:
