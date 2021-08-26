@@ -14,13 +14,13 @@ mic1 = sc.get_microphone('1-2')
 audio = np.zeros([1024,2])
 with mic1.recorder(samplerate=48000) as mic:
 
-    for _ in range(100):
+    for _ in range(99999999999999999):
         MOTU_data = mic.record(numframes=262144)
-        audio = np.concatenate((audio,MOTU_data), axis=0)
-        np.save('experiments/{}/{}/audio_{}.npy'.format(exp_name, sess_name, _), audio)
-print(audio.shape)
+        #audio = np.concatenate((audio,MOTU_data), axis=0)
+        np.save('experiments/{}/{}/audio_{}.npy'.format(exp_name, sess_name, _), MOTU_data)
+#print(audio.shape)
 
 # Playback commands:
-default_speaker = sc.get_speaker('Main');
-default_speaker.play(audio[:,0]/np.max(audio[:,0]),samplerate=48000)
-input()
+#default_speaker = sc.get_speaker('Main');
+#default_speaker.play(audio[:,0]/np.max(audio[:,0]),samplerate=48000)
+#input()
