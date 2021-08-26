@@ -9,6 +9,9 @@ from pathlib import Path
 import os
 import re
 import soundcard as sc
+import serial
+import serial.tools.list_ports
+import pdb
 
 is_trial = False
 
@@ -20,9 +23,14 @@ def write_read(x):
 """
 Arduino Serial Connnection
 """
-arduino = serial.Serial(port='COM9', baudrate=115200, timeout=.1)
+used_ports = serial.tools.list_ports.comports(include_links=False)
+if len(used_ports)>1:
+    print("More than one used port, manually inspect for arduino port")
+    arduino_port='COM9' 
+else:
+    arduino_port= used_ports[0].device; 
+arduino = serial.Serial(port=arduino_port, baudrate=115200, timeout=.1)
 line = ''
-
 
 """
 Experiment Configuration
@@ -55,7 +63,7 @@ sess_name = input("Session Name: ") # Enter session name
 sess_dir = os.path.join(exp_dir, sess_name)
 Path(sess_dir).mkdir(parents=True, exist_ok=True) # Make directory if does not exist
 record_audio_flag = input("Record audio? (y/n): ")
-if record_audio_flag:
+if record_audio_flag.lower() == 'y':
     os.system("start cmd /c python record_MOTU.py {} {}".format(exp_name, sess_name)) 
 exp_logs = open('{}/{}_logs.txt'.format(exp_dir, sess_name), 'a+') # Load session logs (append)
 
@@ -85,10 +93,22 @@ def read_kbd_input(inputQueue):
                 inputQueue.put(input_str)
             elif(not input_str == "exit"):
                 inputQueue.put(exp_config['bats'][input_str])
+            elif input_str == "retract":
+                print("Retract feeders")
+                inputQueue.put(input_str)
+            elif input_str == "deliver P1":
+                print("Manual deliver reward P1")
+                inputQueue.put(input_str)
+            elif input_str == "deliver Q1":
+                print("Manual deliver reward Q1")
+                inputQueue.put(input_str)
+            elif input_str == "door":
+                print("Opening Door")
+                inputQueue.put(input_str)
             else:
                 inputQueue.put("exit")
             is_trial = True
-        if(is_trial):
+        elif(is_trial):
             input_str = input()
             if input_str == "trigger":
                 print("Manual triggerring beam break. Advance to next state")
@@ -96,7 +116,15 @@ def read_kbd_input(inputQueue):
             elif input_str == "reset":
                 print("Manual reset command")
                 inputQueue.put(input_str)
-
+            elif input_str == "deliver P1":
+                print("Manual deliver reward P1")
+                inputQueue.put(input_str)
+            elif input_str == "deliver Q1":
+                print("Manual deliver reward Q1")
+                inputQueue.put(input_str)
+            elif input_str == "door":
+                print("Opening Door")
+                inputQueue.put(input_str)
         time.sleep(0.5)
 
 
