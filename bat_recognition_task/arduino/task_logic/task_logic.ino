@@ -183,6 +183,14 @@ void on_config_exit() {
   Serial.print("CONFIG_EXIT:"+String(millis())+"|");
 }
 
+void on_open_enter() {
+  Serial.print("OPEN_ENTER:"+String(millis())+"|");
+}
+
+void on_open_exit() {
+  Serial.print("OPEN_EXIT:"+String(millis())+"|");
+}
+
 void on_stim_exit() {
   digitalWrite(STIM_STATE_PIN, LOW);
   Serial.print("STIM_EXIT:"+String(millis())+"|");
@@ -205,7 +213,7 @@ void on_rew_exit() {
 
 void on_reset_enter() {
   Serial.print("RESET:"+String(millis())+"|"+"ERR:"+err+"\n");
-  target_feeder = null;
+  target_feeder = "";
 }
 
 void on_reset_exit() {
@@ -288,7 +296,7 @@ void setup() {
                           
  fsm.add_timed_transition(&state_rew, &state_reset,
                           1000,
-                          &on_rew_to_reset_timed);
+                          NULL);
                           
                           
   pinMode(MD1_IN1, OUTPUT);
@@ -312,8 +320,7 @@ void loop() {
  // If zone A BB triggered, then test bat has been placed in interaction zone
  // Transition from RESET to READY State
  if(bounce_A_ZONE_BB.changed()){
-  val_bb_zone = digitalRead(A_ZONE_BB_PIN);
-  if(val_bb_zone == LOW){
+  if(digitalRead(A_ZONE_BB_PIN) == LOW){
     fsm.trigger(EVENT_RESET_READY);
   }
  }
@@ -321,8 +328,7 @@ void loop() {
  // If stumulis A BB triggered, then stimulus has been presented
  // Transition from READY to Stimulus
  if(bounce_A_STIM_BB.changed()){
-   val_bb_stim = digitalRead(A_STIM_BB_PIN);
-   if(val_bb_stim == LOW){
+   if(digitalRead(A_STIM_BB_PIN) == LOW){
     fsm.trigger(EVENT_READY_STIM);
    }
  }
@@ -362,25 +368,21 @@ void loop() {
   //Serial.print(inStr);
   if(inStr == "P1"){
     target_feeder = "P1";
-    fsm.trigger(EVENT_RESET_READY);
   } else if (inStr == "Q1") {
     target_feeder = "Q1";
-    fsm.trigger(EVENT_RESET_READY);
   } else if (inStr == "*") {
     target_feeder = "*";
-    fsm.trigger(EVENT_RESET_READY);
-  } else if (inStr == "trigger") {
-    fsm.trigger(EVENT_REW_RESET);
-    fsm.trigger(EVENT_SNIFF_REW);
-    fsm.trigger(EVENT_STIM_SNIFF);
+  } else if (inStr == "next") {
+    fsm.trigger(EVENT_OPEN_REW);
+    fsm.trigger(EVENT_STIM_OPEN);
     fsm.trigger(EVENT_READY_STIM);
   } else if (inStr == "reset") {
     err = "Received reset command";
+    fsm.trigger(EVENT_READY_RESET);
     fsm.trigger(EVENT_STIM_RESET);
-    fsm.trigger(EVENT_SNIFF_RESET);
+    fsm.trigger(EVENT_OPEN_RESET);
     fsm.trigger(EVENT_REW_RESET);
-    fsm.trigger(EVENT_DELIVER_RESET);
-  } else if (inStr == "exit") {
+  } else if (inStr == "retract") {
     retract_P1();
     retract_Q1();
   }
