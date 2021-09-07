@@ -15,10 +15,16 @@ import pdb
 
 is_trial = False
 
-def write_read(x):
-    arduino.write(bytes(x, 'utf-8'))
-    data = arduino.readline()
-    return data
+def controlled_input(msg, valid_inputs):
+    input_str = ""
+    while not input_str in valid_inputs:
+        input_str = str(input(msg)).lower()
+        if not input_str in valid_inputs:
+            print("Please input valid option: {}".format(valid_inputs))
+    return input_str
+
+
+
 
 """
 Arduino Serial Connnection
@@ -44,14 +50,10 @@ if(Path(os.path.join(exp_dir, "config.json")).is_file()): # Reload config file i
         exp_config = json.loads(f.read())
 else: # Configure new experiment if does not exist
     exp_config['bats'] = {}
-    num_bats = int(input("Number of stimuli bats: "))
+    num_bats = int(controlled_input("Number of stimuli bats: ", ["1", "2", "3", "4", "5"]))
     for i in range(num_bats): # For each bat, input bat ID and corresponding feeder
         bat_id = str(input("Bat {} ID: ".format(i)))
-        feeder = None
-        while not feeder in set(['p','q']):
-            feeder = str(input("Set corresponding feeder (P, Q): ")).lower()
-            if not feeder in set(['p','q']):
-                print("Please select either P or Q!")
+        feeder = controlled_input("Select feeder (p1, q1): ", ["p1", "q1"])
         exp_config['bats'][bat_id] = feeder
     exp_config['num_bats'] = num_bats
     exp_config['exp_name'] = exp_name
@@ -77,6 +79,7 @@ def read_kbd_input(inputQueue):
         if(not is_trial):
             input_str = ""
             print('\n')
+            
             while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit' and not input_str == "*":
                 print('\nInput Next bat id {}:'.format(exp_config['bats']))
                 input_str = input()
@@ -105,8 +108,6 @@ def read_kbd_input(inputQueue):
             elif input_str == "door":
                 print("Opening Door")
                 inputQueue.put(input_str)
-            else:
-                inputQueue.put("exit")
             is_trial = True
         elif(is_trial):
             input_str = input()
