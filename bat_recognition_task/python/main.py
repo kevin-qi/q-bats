@@ -67,8 +67,9 @@ Path(sess_dir).mkdir(parents=True, exist_ok=True) # Make directory if does not e
 record_audio_flag = input("Record audio? (y/n): ")
 if record_audio_flag.lower() == 'y':
     os.system("start cmd /c python record_MOTU.py {} {}".format(exp_name, sess_name)) 
-exp_logs = open('{}/{}_logs.txt'.format(exp_dir, sess_name), 'a+') # Load session logs (append)
-
+exp_logs = open('{}/{}/{}_logs.txt'.format(exp_dir, sess_name, sess_name), 'a+') # Load session logs (append)
+sess_type = controlled_input("Session type (train, test): ", ["train", "test"])
+exp_logs.write(sess_type + '\n')
 def read_kbd_input(inputQueue):
     """
     Read key board inputs in between trials
@@ -76,73 +77,84 @@ def read_kbd_input(inputQueue):
     """
     global is_trial
     while (True):
-        if(not is_trial):
+        if(sess_type == 'train'):
             input_str = ""
-            print('\n')
-            
-            while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit' and not input_str == "*":
-                print('\nInput Next bat id {}:'.format(exp_config['bats']))
-                input_str = input()
-                if input_str not in exp_config['bats'].keys() and not input_str.lower() == 'exit' and not input_str == "*":
-                    print("Invalid bat ID!")
-            if(not input_str.lower() == 'exit'):
-                if(input_str == "*"):
-                    print("Bat selection complete. Please present * bat.")
-                    print("Target Feeder: *")
-                else:
-                    print("Bat selection complete. Please present bat {}".format(input_str))
-                    print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
-            if(input_str == "*"):
-                inputQueue.put(input_str)
-            elif(not input_str == "exit"):
-                inputQueue.put(exp_config['bats'][input_str])
-            elif input_str == "retract":
-                print("Retract feeders")
-                inputQueue.put(input_str)
-            elif input_str == "deliver P1":
-                print("Manual deliver reward P1")
-                inputQueue.put(input_str)
-            elif input_str == "deliver Q1":
-                print("Manual deliver reward Q1")
-                inputQueue.put(input_str)
-            elif input_str == "door":
-                print("Opening Door")
-                inputQueue.put(input_str)
-            is_trial = True
-        elif(is_trial):
             input_str = input()
-            if input_str == "trigger":
-                print("Manual triggerring beam break. Advance to next state")
-                inputQueue.put(input_str)
-            elif input_str == "reset":
-                print("Manual reset command")
-                inputQueue.put(input_str)
-            elif input_str == "deliver P1":
-                print("Manual deliver reward P1")
+            if input_str == "deliver P1":
+                #print("Manual deliver reward P1")
                 inputQueue.put(input_str)
             elif input_str == "deliver Q1":
-                print("Manual deliver reward Q1")
+                #print("Manual deliver reward Q1")
                 inputQueue.put(input_str)
-            elif input_str == "door":
-                print("Opening Door")
+            if input_str == "bait P1":
+                #print("Manual deliver reward P1")
                 inputQueue.put(input_str)
+            elif input_str == "bait Q1":
+                #print("Manual deliver reward Q1")
+                inputQueue.put(input_str)
+            elif input_str == "retract P1":
+                print("Retract feeder P1")
+                inputQueue.put(input_str)
+            elif input_str == "retract Q1":
+                print("Retract feeder Q1")
+                inputQueue.put(input_str)
+        if(sess_type == 'test'):
+            if(not is_trial):
+                input_str = ""
+                print('\n')
+                while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit' and not input_str == "*":
+                    print('\nInput Next bat id {}:'.format(exp_config['bats']))
+                    input_str = input()
+                    if input_str not in exp_config['bats'].keys() and not input_str.lower() == 'exit' and not input_str == "*":
+                        print("Invalid bat ID!")
+                if(not input_str.lower() == 'exit'):
+                    if(input_str == "*"):
+                        print("Bat selection complete. Please present * bat.")
+                        print("Target Feeder: *")
+                    else:
+                        print("Bat selection complete. Please present bat {}".format(input_str))
+                        print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
+                if(input_str == "*"):
+                    inputQueue.put(input_str)
+                elif(not input_str == "exit"):
+                    inputQueue.put(exp_config['bats'][input_str])
+                elif input_str == "retract":
+                    print("Retract feeders")
+                    inputQueue.put(input_str)
+                elif input_str == "deliver P1":
+                    print("Manual deliver reward P1")
+                    inputQueue.put(input_str)
+                elif input_str == "deliver Q1":
+                    print("Manual deliver reward Q1")
+                    inputQueue.put(input_str)
+                elif input_str == "door":
+                    print("Opening Door")
+                    inputQueue.put(input_str)
+                is_trial = True
+            elif(is_trial):
+                input_str = input()
+                if input_str == "next":
+                    print("Manual triggerring beam break. Advance to next state")
+                    inputQueue.put(input_str)
+                elif input_str == "reset":
+                    print("Manual reset command")
+                    inputQueue.put(input_str)
+                elif input_str == "deliver P1":
+                    print("Manual deliver reward P1")
+                    inputQueue.put(input_str)
+                elif input_str == "deliver Q1":
+                    print("Manual deliver reward Q1")
+                    inputQueue.put(input_str)
+                elif input_str == "door":
+                    print("Opening Door")
+                    inputQueue.put(input_str)
+                elif input_str == "retract P1":
+                    print("Retract feeder P1")
+                    inputQueue.put(input_str)
+                elif input_str == "retract Q1":
+                    print("Retract feeder Q1")
+                    inputQueue.put(input_str)
         time.sleep(0.5)
-
-
-"""
-while True:
-    msg = arduino.readline().decode('utf-8')
-    if(msg != ''):
-        line += msg
-        msg = ''
-    if('\n' in line):
-        print(line)
-        exp_logs.write(line)
-        sys.stdout.flush()
-        line = ''
-
-        bat_id = input("Enter bat index")
-        arduino.write(bytes(bat_id, 'utf-8'))"""
 
 def main():
     # Bool flag true during trial, false between trials
@@ -161,10 +173,7 @@ def main():
         # Dequeue from inputQueue to get keyboard inputs
         if (inputQueue.qsize() > 0):
             input_str = inputQueue.get()
-            print("input_str = {}".format(input_str))
-            exp_logs.write(input_str+'\n') # Log to session log file
-
-
+            exp_logs.write('\n'+input_str+'\n') # Log to session log file
 
             if (input_str == EXIT_COMMAND): # Safe quit
                 print("Exiting serial terminal.")
@@ -173,14 +182,14 @@ def main():
 
             # Insert your code here to do whatever you want with the input_str.
             arduino.write(bytes(input_str+'\n', 'utf-8')) # Send bat ID
-            print(input_str)
-            #is_trial = True
 
         # The rest of your program goes here.
         msg = arduino.readline().decode('utf-8')
         line += msg
         if(msg != ''):
             print(msg)
+            if(re.findall(r"(\|\d\d*\|)", msg) == None):
+                print(msg)
             if('RESET' in msg):
                 print('resetting')
                 is_trial = False
@@ -189,10 +198,9 @@ def main():
         time.sleep(0.01)
 
         if("\n" in line):
-            print(line)
             TTL_timestamps = re.findall(r"(\|\d\d*\|)", line)
             if(TTL_timestamps != None):
-                print(TTL_timestamps)
+                #print(TTL_timestamps)
                 for ts in TTL_timestamps:
                     exp_logs.write(ts+'\n')
 
