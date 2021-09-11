@@ -80,6 +80,7 @@ unsigned long stim_start_timestamp = 0;
 unsigned long target_reward_cue_delay = ULONG_MAX;
 
 String err;
+String msg_log;
 
 String target_feeder;
 
@@ -202,13 +203,13 @@ void on_stim_exit() {
 }
 
 void on_rew_enter() {
+  Serial.print("REW_ENTER:"+String(millis())+"("+target_feeder+")|");
   if (target_feeder == "P1") {
     start_P1();
   } 
   if (target_feeder == "Q1") {
     start_Q1();
   }
-  Serial.print("REW_ENTER:"+String(millis())+"("+target_feeder+")|");
   //digitalWrite(REW_STATE_PIN, HIGH);
 }
 
