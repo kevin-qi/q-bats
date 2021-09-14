@@ -138,7 +138,7 @@ def read_kbd_input(inputQueue):
                     print("Manual triggerring beam break. Advance to next state")
                     inputQueue.put(input_str)
                 elif input_str == "reset":
-                    print("Manual reset command")
+                    #print("Manual reset command")
                     inputQueue.put(input_str)
                 elif input_str == "deliver P1":
                     print("Manual deliver reward P1")
@@ -174,7 +174,7 @@ def main():
         # Dequeue from inputQueue to get keyboard inputs
         if (inputQueue.qsize() > 0):
             input_str = inputQueue.get()
-            exp_logs.write('\n'+input_str+'\n') # Log to session log file
+            exp_logs.write('Command: ['+input_str+']\n') # Log to session log file
 
             if (input_str == EXIT_COMMAND): # Safe quit
                 print("Exiting serial terminal.")
@@ -185,30 +185,25 @@ def main():
             arduino.write(bytes(input_str+'\n', 'utf-8')) # Send bat ID
 
         # The rest of your program goes here.
-        msg = arduino.readline().decode('utf-8')
-        line += msg
-        if(msg != ''):
-            print(msg)
-            if(re.findall(r"(\|\d\d*\|)", msg) == None):
-                print(msg)
-            if('RESET' in msg):
-                print('resetting')
-                is_trial = False
-            sys.stdout.flush()
-            msg = ''
+        if(arduino.inWaiting() > 0):
+            inByte = arduino.read(1).decode('utf-8')
+            line += inByte
+            if(inByte == '!'): # Received complete TTL timestamp
+                exp_logs.write(line)
+                #print(line)
+                #sys.stdout.flush()
+                line = ''
+            elif inByte == "|":
+                exp_logs.write(line+'\n')
+
+                if('RESET' in line):
+                    print('Trial Reset')
+                    is_trial = False
+
+                print(line)
+                sys.stdout.flush()
+                line = ''
         time.sleep(0.01)
-
-        if("\n" in line):
-            TTL_timestamps = re.findall(r"(\|\d\d*\|)", line)
-            if(TTL_timestamps != None):
-                #print(TTL_timestamps)
-                for ts in TTL_timestamps:
-                    exp_logs.write(ts+'\n')
-
-            events = re.findall(r"(\w*:\d*\|)", line)
-            if(events != None):
-                exp_logs.write(''.join(events))
-            line = ""
     print("End.")
 
 if (__name__ == '__main__'): 

@@ -239,7 +239,7 @@ void on_rew_exit() {
 }
 
 void on_reset_enter() {
-  Serial.print("RESET:"+String(millis())+"|"+"ERR:"+err+"\n");
+  Serial.print("RESET:"+String(millis())+"|"+"ERR:"+err+"|\n");
   target_feeder = "";
 }
 
@@ -260,7 +260,7 @@ void on_open_to_reset() {
 }
 
 void log_TTL() {
-  Serial.print("|" + String(millis()) + "|\n");
+  Serial.print(String(millis()) + "!");
 }
 
 // Setup
@@ -279,16 +279,16 @@ void setup() {
  //pinMode(BB_READY_PIN, INPUT);
  bounce_A_STIM_BB.attach(A_STIM_BB_PIN, INPUT_PULLUP);
  //bounce.attach(BB_REW_PIN, INPUT);
- bounce_A_STIM_BB.interval(500);
+ bounce_A_STIM_BB.interval(250);
 
  bounce_A_ZONE_BB.attach(A_ZONE_BB_PIN, INPUT_PULLUP);
- bounce_A_ZONE_BB.interval(500);
+ bounce_A_ZONE_BB.interval(250);
 
  bounce_P1_FEED_BB.attach(P1_FEED_BB_PIN, INPUT_PULLUP);
- bounce_P1_FEED_BB.interval(250);
+ bounce_P1_FEED_BB.interval(150);
 
  bounce_Q1_FEED_BB.attach(Q1_FEED_BB_PIN, INPUT_PULLUP);
- bounce_Q1_FEED_BB.interval(250);
+ bounce_Q1_FEED_BB.interval(150);
 
  // Task step transitions
  fsm.add_transition(&state_config, &state_training_manual_feed,
@@ -360,7 +360,7 @@ void loop() {
  // Transition from RESET to READY State
  if(bounce_A_ZONE_BB.changed()){
   if(digitalRead(A_ZONE_BB_PIN) == LOW){
-    Serial.println("A ZONE BB triggered");
+    Serial.print("A ZONE BB triggered|");
     fsm.trigger(EVENT_RESET_READY);
   }
  }
@@ -368,7 +368,7 @@ void loop() {
  // Transition from READY to Stimulus
  if(bounce_A_STIM_BB.changed()){
    if(digitalRead(A_STIM_BB_PIN) == LOW){
-    Serial.println("A STIM BB triggered");
+    Serial.print("A STIM BB triggered|");
     fsm.trigger(EVENT_READY_STIM);
    }
  }
@@ -382,7 +382,7 @@ void loop() {
 
  if(bounce_P1_FEED_BB.changed()){
   if(digitalRead(P1_FEED_BB_PIN) == LOW){
-    Serial.println("P1 BB triggered");
+    Serial.print("P1 BB triggered|");
     if(target_feeder == "P1" || target_feeder == "*"){
         fsm.trigger(EVENT_OPEN_REW);
     } else {
@@ -394,7 +394,7 @@ void loop() {
  
  if(bounce_Q1_FEED_BB.changed()) {
    if(digitalRead(Q1_FEED_BB_PIN) == LOW){
-     Serial.println("Q1 BB triggered");
+     Serial.print("Q1 BB triggered|");
      if(target_feeder == "Q1" || target_feeder == "*"){
        fsm.trigger(EVENT_OPEN_REW);
      } else {
