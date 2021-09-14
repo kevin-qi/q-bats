@@ -1,6 +1,7 @@
 #include <Fsm.h>
 #include <Bounce2.h>
 #include "limits.h"
+#include <Stepper.h>
 
 // Motor 1
 #define MD1_IN1 27
@@ -62,12 +63,16 @@
 #define EVENT_CONFIG_RESET 11
 #define EVENT_RESET_REW 12
 #define EVENT_RESET_OPEN 13
+#define EVENT_READY_REW 14
+#define EVENT_STIM_REW 15
 
 // FSM - LED PINS (TO DISPLAY CURRENT STATE)
 #define READY_STATE_PIN 34
 #define STIM_STATE_PIN 36
 #define OPEN_STATE_PIN 38
 #define REW_STATE_PIN 40
+
+#define STEPS_PER_REV 200
 
 unsigned long ttl_timestamp;
 unsigned long prev_ttl_val = 0;
@@ -81,8 +86,11 @@ unsigned long target_reward_cue_delay = ULONG_MAX;
 
 String err;
 String msg_log;
+String inStr = "";
 
 String target_feeder;
+
+Stepper A_ZONE_DOOR(STEPS_PER_REV, MD2_IN1, MD2_IN2, MD2_IN3, MD2_IN4);
 
 // Beam Break Switch De-bounce wrappers
 Bounce bounce_A_STIM_BB = Bounce();
@@ -132,6 +140,14 @@ void stop_Q1() {
   digitalWrite(MD1_IN3, LOW);
   digitalWrite(MD1_IN4, LOW);
   analogWrite(MD1_ENB, feeder_speed);
+}
+
+void open_door() {
+  A_ZONE_DOOR.step(50);
+  digitalWrite(MD2_IN1, LOW);
+  digitalWrite(MD2_IN2, LOW);
+  digitalWrite(MD2_IN3, LOW);
+  digitalWrite(MD2_IN4, LOW);
 }
 
 // FSM States
@@ -191,6 +207,7 @@ void on_config_exit() {
 
 void on_open_enter() {
   Serial.print("OPEN_ENTER:"+String(millis())+"|");
+  open_door();
 }
 
 void on_open_exit() {
@@ -239,7 +256,7 @@ void on_stim_to_reset() {
 }
 
 void on_open_to_reset() {
-  err = "Manual reset from STATE_OPEN";
+  //err = "Manual reset from STATE_OPEN";
 }
 
 void log_TTL() {
@@ -317,7 +334,7 @@ void setup() {
                           
                           
  fsm.add_timed_transition(&state_rew, &state_reset,
-                          200,
+                          400,
                           NULL);
                           
                           
@@ -325,6 +342,10 @@ void setup() {
   pinMode(MD1_IN2, OUTPUT);
   pinMode(MD1_IN3, OUTPUT);
   pinMode(MD1_IN4, OUTPUT);
+
+  digitalWrite(MD2_ENA, HIGH);
+  digitalWrite(MD2_ENB, HIGH);
+  A_ZONE_DOOR.setSpeed(120);
 }
 
 void loop() {
@@ -339,6 +360,7 @@ void loop() {
  // Transition from RESET to READY State
  if(bounce_A_ZONE_BB.changed()){
   if(digitalRead(A_ZONE_BB_PIN) == LOW){
+    Serial.println("A ZONE BB triggered");
     fsm.trigger(EVENT_RESET_READY);
   }
  }
@@ -346,6 +368,7 @@ void loop() {
  // Transition from READY to Stimulus
  if(bounce_A_STIM_BB.changed()){
    if(digitalRead(A_STIM_BB_PIN) == LOW){
+    Serial.println("A STIM BB triggered");
     fsm.trigger(EVENT_READY_STIM);
    }
  }
@@ -359,6 +382,7 @@ void loop() {
 
  if(bounce_P1_FEED_BB.changed()){
   if(digitalRead(P1_FEED_BB_PIN) == LOW){
+    Serial.println("P1 BB triggered");
     if(target_feeder == "P1" || target_feeder == "*"){
         fsm.trigger(EVENT_OPEN_REW);
     } else {
@@ -370,9 +394,8 @@ void loop() {
  
  if(bounce_Q1_FEED_BB.changed()) {
    if(digitalRead(Q1_FEED_BB_PIN) == LOW){
-     Serial.println("BB triggered");
+     Serial.println("Q1 BB triggered");
      if(target_feeder == "Q1" || target_feeder == "*"){
-       Serial.println("trigger rew state");
        fsm.trigger(EVENT_OPEN_REW);
      } else {
        err = "Wrong feeder. Expected: P1, Triggerd: Q1";
@@ -382,51 +405,62 @@ void loop() {
  }
 
  
- if(Serial.available()){
-  String inStr = Serial.readStringUntil('\n');
-  //Serial.print(inStr);
-  if(inStr == "train"){
-    fsm.trigger(EVENT_CONFIG_RESET);
-  } else if (inStr == "deliver P1") {
-    Serial.println("Manual deliver P1");
-    target_feeder = "P1";
-    fsm.trigger(EVENT_RESET_REW);
-  } else if (inStr == "deliver Q1") {
-    Serial.println("Manual bait Q1");
-    target_feeder = "Q1";
-    fsm.trigger(EVENT_RESET_REW);
-  } else if (inStr == "bait P1") {
-    Serial.println("Manual bait P1");
-    target_feeder = "P1";
-    fsm.trigger(EVENT_RESET_OPEN);
-  } else if (inStr == "bait Q1") {
-    Serial.println("Manual bait Q1");
-    target_feeder = "Q1";
-    fsm.trigger(EVENT_RESET_OPEN);
-  } else if (inStr == "test") {
-    fsm.trigger(EVENT_CONFIG_RESET);
-  } else if (inStr == "P1"){
-    target_feeder = "P1";
-  } else if (inStr == "Q1") {
-    target_feeder = "Q1";
-  } else if (inStr == "*") {
-    target_feeder = "*";
-  } else if (inStr == "next") {
-    fsm.trigger(EVENT_OPEN_REW);
-    fsm.trigger(EVENT_STIM_OPEN);
-    fsm.trigger(EVENT_READY_STIM);
-    fsm.trigger(EVENT_RESET_READY);
-  } else if (inStr == "reset") {
-    err = "Received reset command";
-    fsm.trigger(EVENT_READY_RESET);
-    fsm.trigger(EVENT_STIM_RESET);
-    fsm.trigger(EVENT_OPEN_RESET);
-    fsm.trigger(EVENT_REW_RESET);
-  } else if (inStr == "retract P1") {
-    retract_P1();
-  } else if (inStr == "retract Q1") {
-    retract_Q1();
+ if(Serial.available() > 0){
+  char ch;
+  ch = Serial.read();
+  if(ch == '\n'){
+    Serial.println(inStr);
+    if(inStr == "train"){
+      fsm.trigger(EVENT_CONFIG_RESET);
+    } else if (inStr == "deliver P1") {
+      Serial.println("Manual deliver P1");
+      target_feeder = "P1";
+      fsm.trigger(EVENT_RESET_REW);
+      fsm.trigger(EVENT_OPEN_REW);
+      fsm.trigger(EVENT_READY_REW);
+    } else if (inStr == "deliver Q1") {
+      Serial.println("Manual deliver Q1");
+      target_feeder = "Q1";
+      fsm.trigger(EVENT_RESET_REW);
+      fsm.trigger(EVENT_OPEN_REW);
+      fsm.trigger(EVENT_READY_REW);
+    } else if (inStr == "bait P1") {
+      Serial.println("Manual bait P1");
+      target_feeder = "P1";
+      fsm.trigger(EVENT_RESET_OPEN);
+    } else if (inStr == "bait Q1") {
+      Serial.println("Manual bait Q1");
+      target_feeder = "Q1";
+      fsm.trigger(EVENT_RESET_OPEN);
+    } else if (inStr == "test") {
+      fsm.trigger(EVENT_CONFIG_RESET);
+    } else if (inStr == "P1"){
+      target_feeder = "P1";
+    } else if (inStr == "Q1") {
+      target_feeder = "Q1";
+    } else if (inStr == "*") {
+      target_feeder = "*";
+    } else if (inStr == "next") {
+      fsm.trigger(EVENT_OPEN_REW);
+      fsm.trigger(EVENT_STIM_OPEN);
+      fsm.trigger(EVENT_READY_STIM);
+      fsm.trigger(EVENT_RESET_READY);
+    } else if (inStr == "reset") {
+      err = "Received reset command";
+      fsm.trigger(EVENT_READY_RESET);
+      fsm.trigger(EVENT_STIM_RESET);
+      fsm.trigger(EVENT_OPEN_RESET);
+      fsm.trigger(EVENT_REW_RESET);
+    } else if (inStr == "retract P1") {
+      retract_P1();
+    } else if (inStr == "retract Q1") {
+      retract_Q1();
+    }
+    inStr = "";
+  } else {
+    inStr += ch;
   }
+  
   
  }
 }

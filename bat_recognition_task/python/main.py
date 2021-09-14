@@ -114,6 +114,7 @@ def read_kbd_input(inputQueue):
                     else:
                         print("Bat selection complete. Please present bat {}".format(input_str))
                         print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
+                        inputQueue.put(exp_config['bats'][input_str].upper())
                 if(input_str == "*"):
                     inputQueue.put(input_str)
                 elif(not input_str == "exit"):
