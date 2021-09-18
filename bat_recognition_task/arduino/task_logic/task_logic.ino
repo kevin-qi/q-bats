@@ -235,6 +235,7 @@ void on_rew_exit() {
   stop_Q1();
   stop_P1();
   target_feeder = "";
+  err = "";
   Serial.print("REW_EXIT:"+String(millis())+"|");
 }
 
@@ -334,7 +335,7 @@ void setup() {
                           
                           
  fsm.add_timed_transition(&state_rew, &state_reset,
-                          400,
+                          300,
                           NULL);
                           
                           
@@ -384,6 +385,7 @@ void loop() {
   if(digitalRead(P1_FEED_BB_PIN) == LOW){
     Serial.print("P1 BB triggered|");
     if(target_feeder == "P1" || target_feeder == "*"){
+        target_feeder = "P1";
         fsm.trigger(EVENT_OPEN_REW);
     } else {
         err = "Wrong feeder. Expected: Q1, Triggerd: P1";
@@ -396,6 +398,7 @@ void loop() {
    if(digitalRead(Q1_FEED_BB_PIN) == LOW){
      Serial.print("Q1 BB triggered|");
      if(target_feeder == "Q1" || target_feeder == "*"){
+       target_feeder = "Q1";
        fsm.trigger(EVENT_OPEN_REW);
      } else {
        err = "Wrong feeder. Expected: P1, Triggerd: Q1";
