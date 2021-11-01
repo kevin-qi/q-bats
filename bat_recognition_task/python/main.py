@@ -12,8 +12,11 @@ import soundcard as sc
 import serial
 import serial.tools.list_ports
 import pdb
+import numpy as np
 
 is_trial = False
+
+stim_index = 0
 
 def controlled_input(msg, valid_inputs):
     input_str = ""
@@ -69,13 +72,21 @@ if record_audio_flag.lower() == 'y':
     os.system("start cmd /c python record_MOTU.py {} {}".format(exp_name, sess_name)) 
 exp_logs = open('{}/{}/{}_logs.txt'.format(exp_dir, sess_name, sess_name), 'a+') # Load session logs (append)
 sess_type = controlled_input("Session type (train, test): ", ["train", "test"])
+arduino.write(bytes(sess_type+'\n', 'utf-8')) # Send session type
 exp_logs.write(sess_type + '\n')
+
+stim_order = list(exp_config['bats'].keys())*25
+np.random.shuffle(stim_order)
+np.random.shuffle(stim_order)
+print(stim_order)
+stim_order = list(stim_order)
 def read_kbd_input(inputQueue):
     """
     Read key board inputs in between trials
     Run this on a seperate thread, not on the main thread!
     """
     global is_trial
+    global stim_index
     while (True):
         if(sess_type == 'train'):
             input_str = ""
@@ -98,15 +109,18 @@ def read_kbd_input(inputQueue):
             elif input_str == "retract Q1":
                 print("Retract feeder Q1")
                 inputQueue.put(input_str)
+            elif input_str == "reset":
+                inputQueue.put(input_str)
         if(sess_type == 'test'):
             if(not is_trial):
                 input_str = ""
                 print('\n')
                 while input_str not in exp_config['bats'].keys()  and not input_str.lower() == 'exit' and not input_str == "*":
-                    print('\nInput Next bat id {}:'.format(exp_config['bats']))
+                    print('\nTrial num: {} \nInput Next bat id {} (Next random: {}):'.format(stim_index, exp_config['bats'], stim_order[stim_index]))
                     input_str = input()
                     if input_str not in exp_config['bats'].keys() and not input_str.lower() == 'exit' and not input_str == "*":
                         print("Invalid bat ID!")
+
                 if(not input_str.lower() == 'exit'):
                     if(input_str == "*"):
                         print("Bat selection complete. Please present * bat.")
@@ -114,7 +128,9 @@ def read_kbd_input(inputQueue):
                     else:
                         print("Bat selection complete. Please present bat {}".format(input_str))
                         print("Target Feeder: {}".format(exp_config['bats'][input_str].upper()))
+                        exp_logs.write("Select bat {}".format(input_str))
                         inputQueue.put(exp_config['bats'][input_str].upper())
+                        stim_index += 1
                 if(input_str == "*"):
                     inputQueue.put(input_str)
                 elif(not input_str == "exit"):
@@ -140,6 +156,7 @@ def read_kbd_input(inputQueue):
                 elif input_str == "reset":
                     #print("Manual reset command")
                     inputQueue.put(input_str)
+                    stim_index -= 1
                 elif input_str == "deliver P1":
                     print("Manual deliver reward P1")
                     inputQueue.put(input_str)
@@ -188,6 +205,8 @@ def main():
         if(arduino.inWaiting() > 0):
             inByte = arduino.read(1).decode('utf-8')
             line += inByte
+            #print(inByte)
+            #sys.stdout.flush()
             if(inByte == '!'): # Received complete TTL timestamp
                 exp_logs.write(line)
                 #print(line)
@@ -199,7 +218,6 @@ def main():
                 if('RESET' in line):
                     print('Trial Reset')
                     is_trial = False
-
                 print(line)
                 sys.stdout.flush()
                 line = ''

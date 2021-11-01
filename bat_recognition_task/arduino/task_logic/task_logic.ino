@@ -48,6 +48,12 @@
 // TTL
 #define TTL_PIN 20
 
+// STATE OUTPUTS
+// HIGH if state is active
+// LOW if state is not active
+// To be sent to MOTU
+
+
 #define feeder_speed 127
 
 // FSM - EVENTS
@@ -66,15 +72,23 @@
 #define EVENT_READY_REW 14
 #define EVENT_STIM_REW 15
 
-// FSM - LED PINS (TO DISPLAY CURRENT STATE)
+// STATE OUTPUTS
+// HIGH if state is active
+// LOW if state is not active
+// To be sent to MOTU
+#define RESET_STATE_PIN 32
 #define READY_STATE_PIN 34
 #define STIM_STATE_PIN 36
 #define OPEN_STATE_PIN 38
 #define REW_STATE_PIN 40
+#define PWM_STATE_PIN 10
 
 #define STEPS_PER_REV 200
 
+#define REWARD_DELIVER_TIME 200
+
 unsigned long ttl_timestamp;
+unsigned long manual_deliver_start_time;
 unsigned long prev_ttl_val = 0;
 
 int val_bb_stim;
@@ -87,6 +101,9 @@ unsigned long target_reward_cue_delay = ULONG_MAX;
 String err;
 String msg_log;
 String inStr = "";
+
+bool open_door_flag = true;
+
 
 String target_feeder;
 
@@ -104,7 +121,7 @@ void retract_P1(){
   digitalWrite(MD1_IN1, LOW);
   digitalWrite(MD1_IN2, HIGH);
   analogWrite(MD1_ENA, 255);
-  delay(5000);
+  delay(1000);
   digitalWrite(MD1_IN1, LOW);
   digitalWrite(MD1_IN2, LOW);
 }
@@ -113,15 +130,15 @@ void retract_Q1(){
   digitalWrite(MD1_IN3, LOW);
   digitalWrite(MD1_IN4, HIGH);
   analogWrite(MD1_ENB, 255);
-  delay(5000);
+  delay(1000);
   digitalWrite(MD1_IN3, LOW);
   digitalWrite(MD1_IN4, LOW);
 }
 
 void start_P1() {
+  analogWrite(MD1_ENA, feeder_speed);
   digitalWrite(MD1_IN1, HIGH);
   digitalWrite(MD1_IN2, LOW);
-  analogWrite(MD1_ENA, feeder_speed);
 }
 
 void stop_P1() {
@@ -131,9 +148,10 @@ void stop_P1() {
 }
 
 void start_Q1() {
+  analogWrite(MD1_ENB, feeder_speed);
   digitalWrite(MD1_IN3, HIGH);
   digitalWrite(MD1_IN4, LOW);
-  analogWrite(MD1_ENB, feeder_speed);
+  
 }
 
 void stop_Q1() {
@@ -143,7 +161,7 @@ void stop_Q1() {
 }
 
 void open_door() {
-  A_ZONE_DOOR.step(50);
+  A_ZONE_DOOR.step(70);
   digitalWrite(MD2_IN1, LOW);
   digitalWrite(MD2_IN2, LOW);
   digitalWrite(MD2_IN3, LOW);
@@ -154,7 +172,7 @@ void open_door() {
 State state_config(&on_config_enter, NULL, &on_config_exit); // Configuration state where user controls session type (training, testing, etc...) via Python interface
 
 // Training Paradigms
-State state_training_manual_feed(&on_training_manual_feed_enter, NULL, &on_training_manual_feed_exit); // State for training paradigm - manual feed from feeders to habituate bat to feeding from feeders
+State state_training_free_feed(&on_training_manual_feed_enter, NULL, &on_training_manual_feed_exit); // State for training paradigm - manual feed from feeders to habituate bat to feeding from feeders
 
 // Testing Paradigm
 State state_reset(&on_reset_enter, NULL, &on_reset_exit); // Reset state where user resets test bat to interaction zone 
@@ -165,6 +183,8 @@ State state_rew(&on_rew_enter, NULL, &on_rew_exit); // Reward state where test b
 
 // FSM Instance
 Fsm fsm(&state_reset);
+
+
 
 // FSM Lifecycle Methods
 void on_training_manual_feed_enter() {
@@ -193,7 +213,7 @@ void on_ready_exit() {
 void on_stim_enter() {
   digitalWrite(STIM_STATE_PIN, HIGH);
   stim_start_timestamp = millis(); // Timestamp start of interaction (test bat in interaction zone and stimulus bat presented)
-  target_reward_cue_delay = 10000; // Should be randomized
+  target_reward_cue_delay = 20000; // Should be randomized
   Serial.print("STIM_ENTER:"+String(millis())+"|");
 }
 
@@ -207,7 +227,28 @@ void on_config_exit() {
 
 void on_open_enter() {
   Serial.print("OPEN_ENTER:"+String(millis())+"|");
-  open_door();
+  if(open_door_flag == true){
+    open_door();
+  }
+  long num = random(100);
+  if(num < 0){
+    if (target_feeder == "P1"){
+      Serial.print("Manual deliver P1: "+String(millis())+"|");
+      //manual_deliver_start_time = millis();
+      //start_P1();
+    } 
+    if (target_feeder == "Q1"){
+      Serial.print("Manual deliver Q1: "+String(millis())+"|");
+      //manual_deliver_start_time = millis();
+      //start_Q1();
+    } 
+    if (target_feeder == "*"){
+      Serial.print("Manual deliver *: "+String(millis())+"|");
+      //manual_deliver_start_time = millis();
+      //start_P1();
+      //start_Q1();
+    }
+  }
 }
 
 void on_open_exit() {
@@ -226,7 +267,7 @@ void on_rew_enter() {
   } 
   if (target_feeder == "Q1") {
     start_Q1();
-  }
+  } 
   //digitalWrite(REW_STATE_PIN, HIGH);
 }
 
@@ -273,26 +314,29 @@ void setup() {
  pinMode(READY_STATE_PIN, OUTPUT);
  pinMode(STIM_STATE_PIN, OUTPUT);
  pinMode(REW_STATE_PIN, OUTPUT);
-
+ pinMode(PWM_STATE_PIN, OUTPUT);
+ pinMode(9, OUTPUT);
+ pinMode(11, OUTPUT);
+ 
  pinMode(TTL_PIN, INPUT);
  attachInterrupt(digitalPinToInterrupt(TTL_PIN), log_TTL, RISING);
  
  //pinMode(BB_READY_PIN, INPUT);
  bounce_A_STIM_BB.attach(A_STIM_BB_PIN, INPUT_PULLUP);
  //bounce.attach(BB_REW_PIN, INPUT);
- bounce_A_STIM_BB.interval(250);
+ bounce_A_STIM_BB.interval(50);
 
  bounce_A_ZONE_BB.attach(A_ZONE_BB_PIN, INPUT_PULLUP);
- bounce_A_ZONE_BB.interval(250);
+ bounce_A_ZONE_BB.interval(50);
 
  bounce_P1_FEED_BB.attach(P1_FEED_BB_PIN, INPUT_PULLUP);
- bounce_P1_FEED_BB.interval(150);
+ bounce_P1_FEED_BB.interval(50);
 
  bounce_Q1_FEED_BB.attach(Q1_FEED_BB_PIN, INPUT_PULLUP);
- bounce_Q1_FEED_BB.interval(150);
+ bounce_Q1_FEED_BB.interval(50);
 
  // Task step transitions
- fsm.add_transition(&state_config, &state_training_manual_feed,
+ fsm.add_transition(&state_config, &state_training_free_feed,
                     EVENT_CONFIG_MANUALFEED,
                     NULL);           
  fsm.add_transition(&state_config, &state_reset,
@@ -335,7 +379,7 @@ void setup() {
                           
                           
  fsm.add_timed_transition(&state_rew, &state_reset,
-                          300,
+                          REWARD_DELIVER_TIME,
                           NULL);
                           
                           
@@ -346,7 +390,7 @@ void setup() {
 
   digitalWrite(MD2_ENA, HIGH);
   digitalWrite(MD2_ENB, HIGH);
-  A_ZONE_DOOR.setSpeed(120);
+  A_ZONE_DOOR.setSpeed(90);
 }
 
 void loop() {
@@ -356,7 +400,14 @@ void loop() {
  bounce_A_ZONE_BB.update();
  bounce_P1_FEED_BB.update();
  bounce_Q1_FEED_BB.update();
-
+ digitalWrite(PWM_STATE_PIN, HIGH);
+ digitalWrite(11, HIGH);
+ digitalWrite(9, HIGH);
+ delay(1000);
+ digitalWrite(PWM_STATE_PIN, LOW);
+ digitalWrite(11, LOW);
+ digitalWrite(9, LOW);
+ delay(1000);
  // If zone A BB triggered, then test bat has been placed in interaction zone
  // Transition from RESET to READY State
  if(bounce_A_ZONE_BB.changed()){
@@ -375,9 +426,15 @@ void loop() {
  }
 
  // After randomized delay after stimulus presentation, open door
- if(millis() - stim_start_timestamp >= target_reward_cue_delay) {
+ if(millis() - stim_start_timestamp >= target_reward_cue_delay & target_feeder != "") {
    fsm.trigger(EVENT_STIM_OPEN);
    target_reward_cue_delay = ULONG_MAX;
+ }
+
+ if(manual_deliver_start_time != 0 & millis() - manual_deliver_start_time >= REWARD_DELIVER_TIME) {
+   stop_P1();
+   stop_Q1();
+   manual_deliver_start_time = 0;
  }
  
 
@@ -389,6 +446,8 @@ void loop() {
         fsm.trigger(EVENT_OPEN_REW);
     } else {
         err = "Wrong feeder. Expected: Q1, Triggerd: P1";
+        //target_feeder = "P1";
+        //fsm.trigger(EVENT_OPEN_REW);
         fsm.trigger(EVENT_OPEN_RESET);
     }
   }
@@ -402,6 +461,8 @@ void loop() {
        fsm.trigger(EVENT_OPEN_REW);
      } else {
        err = "Wrong feeder. Expected: P1, Triggerd: Q1";
+       //target_feeder = "Q1";
+       //fsm.trigger(EVENT_OPEN_REW);
        fsm.trigger(EVENT_OPEN_RESET);
      }
    }
@@ -414,19 +475,18 @@ void loop() {
   if(ch == '\n'){
     Serial.println(inStr);
     if(inStr == "train"){
+      open_door_flag = false;
       fsm.trigger(EVENT_CONFIG_RESET);
+    } else if (inStr == "test"){
+      open_door_flag = true; 
     } else if (inStr == "deliver P1") {
-      Serial.println("Manual deliver P1");
-      target_feeder = "P1";
-      fsm.trigger(EVENT_RESET_REW);
-      fsm.trigger(EVENT_OPEN_REW);
-      fsm.trigger(EVENT_READY_REW);
+      Serial.print("Manual deliver P1: "+String(millis())+"|");
+      manual_deliver_start_time = millis();
+      start_P1();
     } else if (inStr == "deliver Q1") {
-      Serial.println("Manual deliver Q1");
-      target_feeder = "Q1";
-      fsm.trigger(EVENT_RESET_REW);
-      fsm.trigger(EVENT_OPEN_REW);
-      fsm.trigger(EVENT_READY_REW);
+      Serial.print("Manual deliver Q1: "+String(millis())+"|");
+      manual_deliver_start_time = millis();
+      start_Q1();
     } else if (inStr == "bait P1") {
       Serial.println("Manual bait P1");
       target_feeder = "P1";
