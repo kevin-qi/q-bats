@@ -110,8 +110,8 @@ for i=1:length(res)
     end
     disp(i);
 end
-first_annotated_frame = round(min(frame_indices)/T);
-last_annotated_frame = round(max(frame_indices)/T);
+first_annotated_frame = round(min(frame_indices)/T)+1;
+last_annotated_frame = round(max(frame_indices)/T)+1;
 
 for frame=first_annotated_frame:last_annotated_frame
     data(frame).chunk = 'null';
@@ -164,8 +164,8 @@ for i=1:height(annotations)
                         chunks.(ch_name) = [chunks.(ch_name) act]; 
                     end
                     for frame=frame_start:frame_end
-                        data(frame).chunk = sprintf('%s_%d', chunk_name, j);
-                        data(frame).activity = label;
+                        data(frame+1).chunk = sprintf('%s_%d', chunk_name, j);
+                        data(frame+1).activity = label;
                     end
                 end
             end

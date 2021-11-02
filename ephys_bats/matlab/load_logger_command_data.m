@@ -39,7 +39,7 @@ for i=1:length(files)
 end
 
 % Plotting TTL
-figure;
-stem(data.ttl_timestamps_usec, ones(size(data.ttl_timestamps_usec)));
+%figure;
+%stem(data.ttl_timestamps_usec, ones(size(data.ttl_timestamps_usec)));
 end
 
